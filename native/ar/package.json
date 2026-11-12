@@ -1,0 +1,15 @@
+{
+  "name": "field-warfare-ar",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ARKit augmented reality for the Field Warfare iOS app: camera, device tracking and tabletop placement.",
+  "files": [
+    "Package.swift",
+    "ios/Sources"
+  ],
+  "capacitor": {
+    "ios": {
+      "src": "ios"
+    }
+  }
+}

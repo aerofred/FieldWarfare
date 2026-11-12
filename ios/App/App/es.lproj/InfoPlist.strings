@@ -1,0 +1,3 @@
+/* Permission prompts shown by iOS. */
+"NSCameraUsageDescription" = "Field Warfare usa la cámara para la realidad aumentada: coloca el campo de batalla como una maqueta sobre una mesa o haz que los enemigos entren en tu habitación.";
+"NSLocalNetworkUsageDescription" = "Field Warfare encuentra las partidas de otros jugadores en tu red local y anuncia la tuya.";

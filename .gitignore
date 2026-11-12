@@ -1,0 +1,17 @@
+node_modules/
+dist/
+artifacts/
+*.zip
+test-results/
+releases/
+build/
+
+# macOS
+.DS_Store
+
+# Xcode et Swift Package Manager (projet iOS et plugin natif)
+xcuserdata/
+DerivedData/
+*.xcuserstate
+.swiftpm/
+ios/App/App.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/

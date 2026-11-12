@@ -1,0 +1,3 @@
+/* Permission prompts shown by iOS. */
+"NSCameraUsageDescription" = "O Field Warfare usa a câmera para a realidade aumentada: coloque o campo de batalha como uma maquete sobre uma mesa ou traga os inimigos para dentro do seu cômodo.";
+"NSLocalNetworkUsageDescription" = "O Field Warfare encontra as partidas de outros jogadores na sua rede local e anuncia a sua.";

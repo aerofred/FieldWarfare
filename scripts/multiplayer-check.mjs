@@ -1,0 +1,40 @@
+import {chromium} from '@playwright/test';
+import assert from 'node:assert/strict';
+import {mkdir,writeFile} from 'node:fs/promises';
+import {createGameServer} from '../server/server.js';
+const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+async function waitFor(check,timeout=12000){const deadline=Date.now()+timeout;while(Date.now()<deadline){if(await check())return;await sleep(30);}throw new Error('Multiplayer condition timeout');}
+await mkdir('artifacts',{recursive:true});
+const server=await createGameServer({port:0,host:'127.0.0.1',fillBots:false}),origin=`http://127.0.0.1:${server.address.port}`;
+const browser=await chromium.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',headless:true,args:['--enable-unsafe-swiftshader','--use-angle=swiftshader','--disable-background-timer-throttling','--disable-renderer-backgrounding','--disable-backgrounding-occluded-windows']});
+const errors=[],checks=new Proxy({},{set(target,key,value){target[key]=value;console.log('OK : '+key);return true;}});
+const context=await browser.newContext({locale:'fr-FR',viewport:{width:1280,height:900}});await context.addInitScript(()=>localStorage.setItem('fw-settings',JSON.stringify({sensitivity:1,volume:0,quality:'low'})));
+const alice=await context.newPage(),bob=await context.newPage();for(const page of [alice,bob])page.on('pageerror',e=>errors.push(e.message));
+const state=page=>page.evaluate(()=>window.fieldWarfare.getState());
+async function join(page,name){await page.goto(origin,{waitUntil:'networkidle'});await page.waitForFunction(()=>window.fieldWarfare);await page.locator('#loading').waitFor({state:'detached'});await page.locator('[data-mode="tdm"]').click();await page.locator('[data-venue="online"]').click();await page.locator('#deploy').click();await page.locator('#online-name').fill(name);await page.locator('#online-connect').click();await page.waitForFunction(()=>window.fieldWarfare.getState().online===true);}
+try{
+ await join(alice,'Alice');assert.equal((await state(alice)).phase,'waiting');await join(bob,'Bob');await waitFor(async()=>((await state(alice)).phase==='active'&&(await state(bob)).roster.length===2));
+ const a=await state(alice),b=await state(bob);assert.notEqual(a.id,b.id);assert.equal(a.roster.length,2);assert.equal(a.roster.filter(p=>p.team==='blue').length,1);assert.equal(a.roster.filter(p=>p.team==='red').length,1);checks.twoHumanClients=true;
+ await alice.bringToFront();await alice.locator('#resume').click();await alice.waitForFunction(()=>window.fieldWarfare.getState().state==='active');const initial=await state(alice);await alice.keyboard.down('KeyW');await sleep(800);await alice.keyboard.up('KeyW');await waitFor(async()=>((await state(bob)).roster.find(p=>p.id===a.id).z<initial.player.z-1));checks.synchronizedMovement=true;
+ await alice.keyboard.down('Tab');assert.equal(await alice.locator('#scoreboard-roster tbody tr').count(),2);assert.ok((await alice.locator('#scoreboard-roster').textContent()).includes('Bob'));await alice.screenshot({path:'artifacts/multiplayer-scoreboard.png'});await alice.keyboard.up('Tab');
+ await alice.mouse.down();await sleep(450);await alice.mouse.up();await waitFor(async()=>(await state(alice)).ammo.ammo<100);await alice.keyboard.press('KeyR');await waitFor(async()=>(await state(alice)).ammo.ammo===100);assert.ok((await state(alice)).ammo.reserve<200);checks.serverAmmoAndReload=true;
+ await alice.evaluate(()=>document.exitPointerLock());await alice.waitForFunction(()=>window.fieldWarfare.getState().state==='paused');const before=(await state(alice)).remaining;await sleep(600);assert.ok((await state(alice)).remaining<before-.3);checks.pauseKeepsServerRunning=true;
+ // Place the two real clients in an unobstructed test lane on the server.
+ // No test movement/health commands exist in the browser protocol.
+ const actorA=server.room.players.get(a.id),actorB=server.room.players.get(b.id);Object.assign(actorA,{x:-8,z:8,yaw:0,pitch:0,jump:0,vy:0,health:100,protectedUntil:0});Object.assign(actorB,{x:-8,z:3,yaw:Math.PI,pitch:0,jump:0,vy:0,health:100,protectedUntil:0});actorA.input={...actorA.input,yaw:0,pitch:0,forward:0,strafe:0,fire:false};actorB.input={...actorB.input,yaw:Math.PI,pitch:0,forward:0,strafe:0,fire:false};server.broadcast();await waitFor(async()=>Math.abs((await state(alice)).player.z-8)<.5);
+ await alice.bringToFront();await alice.locator('#resume').click();await alice.waitForFunction(()=>window.fieldWarfare.getState().state==='active');
+ const dy=(actorA.pitch+Math.atan2(.57,5))/.0018;await alice.evaluate(dy=>{const event=new MouseEvent('mousemove');Object.defineProperty(event,'movementX',{value:0});Object.defineProperty(event,'movementY',{value:dy});document.dispatchEvent(event);},dy);
+ await alice.screenshot({path:'artifacts/multiplayer-gameplay.png'});await alice.mouse.down();await waitFor(()=>actorB.deaths===1);await alice.mouse.up();await waitFor(async()=>(await state(bob)).player.alive===false);assert.equal(server.room.scores.blue,1);assert.equal((await state(bob)).teamScores.blue,1);assert.equal((await state(alice)).kills,1);checks.humanCombatAndSharedScore=true;
+ await waitFor(async()=>(await state(bob)).player.alive===true);assert.equal(actorB.health,100);assert.equal(actorB.deaths,1);assert.equal(server.room.scores.blue,1);checks.serverRespawn=true;
+ await alice.keyboard.press('Digit2');await waitFor(async()=>(await state(alice)).weapon==='revolver');assert.equal(actorA.weapon,5);checks.weaponSynchronization=true;
+ await alice.keyboard.press('KeyG');await waitFor(async()=>(await state(alice)).grenades===1);assert.equal(actorA.grenades,1);checks.serverGrenades=true;
+ server.room.scores.red=40;server.room.finish();server.broadcast();await waitFor(async()=>(await state(alice)).state==='ended'&&(await state(bob)).state==='ended');assert.equal(await alice.locator('#result-title').textContent(),'DÉFAITE ALPHA.');assert.equal(await bob.locator('#result-title').textContent(),'VICTOIRE BRAVO.');assert.equal(await bob.locator('#result-roster tbody tr').count(),2);checks.sharedRoundResults=true;const oldRound=server.room.round;server.room.restartIn=.01;server.room.tick(.1);server.broadcast();await waitFor(async()=>(await state(alice)).state==='paused'&&(await state(bob)).phase==='active');assert.equal(server.room.round,oldRound+1);assert.equal((await state(alice)).teamScores.red,0);checks.automaticNextRound=true;
+ await bob.locator('#quit').click();await waitFor(()=>server.room.players.size===1);await waitFor(async()=>(await state(alice)).roster.length===1);assert.equal(server.room.phase,'waiting');checks.disconnectRemovesHuman=true;
+ await alice.evaluate(()=>document.exitPointerLock());await alice.locator('#quit').click();await waitFor(()=>server.room.players.size===0);
+ // The user receives a useful error rather than a stuck loading state.
+ await alice.locator('#deploy').click();await alice.locator('#online-address').fill('http://127.0.0.1:65534');await alice.locator('#online-connect').click();await waitFor(async()=>!(await alice.locator('#online-connect').isDisabled()));assert.ok((await alice.locator('#online-status').textContent()).includes('Connexion'));checks.connectionFailure=true;
+ await alice.locator('#online-address').fill(origin);await alice.locator('#online-connect').click();await alice.waitForFunction(()=>window.fieldWarfare.getState().online===true);await server.close();await waitFor(async()=>(await state(alice)).state==='lobby');assert.ok((await alice.locator('#online-status').textContent()).includes('perdue'));checks.serverDisconnectRecovery=true;
+ assert.deepEqual(errors,[]);console.log(JSON.stringify({status:'passed',checks,errors},null,2));await writeFile('artifacts/multiplayer-check.json',JSON.stringify({checks,errors},null,2));
+}catch(error){
+ const clients=await Promise.allSettled([state(alice),state(bob)]);await writeFile('artifacts/multiplayer-failure.json',JSON.stringify({error:error.stack,checks,clock:server.room.clock,phase:server.room.phase,players:[...server.room.players.values()],clients,errors},null,2));throw error;
+}finally{await browser.close();await server.close();}

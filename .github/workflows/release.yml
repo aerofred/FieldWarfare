@@ -1,0 +1,127 @@
+# Builds the desktop apps and the server package, then publishes them as a
+# GitHub release. Triggered by pushing a version tag that matches
+# package.json, e.g.:
+#   git tag v4.0.1 && git push origin v4.0.1
+# The apps are not signed: see .github/release-notes.md (shown on the
+# release page) and the README for how players open them.
+name: Release
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Check version and run tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tag matches package.json
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match package.json version $version"
+            exit 1
+          fi
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
+  mac:
+    name: macOS app
+    needs: check
+    runs-on: macos-latest
+    env:
+      # No Developer ID certificate: build unsigned (ad hoc on Apple Silicon).
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node scripts/app.mjs
+      - run: npx electron-builder --mac --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac
+          path: |
+            releases/app/FieldWarfare-*-mac.dmg
+            releases/app/FieldWarfare-*-mac.zip
+          if-no-files-found: error
+
+  windows:
+    name: Windows app
+    needs: check
+    runs-on: windows-latest
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node scripts/app.mjs
+      - run: npx electron-builder --win --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: |
+            releases/app/FieldWarfare-*-setup.exe
+            releases/app/FieldWarfare-*-portable.exe
+          if-no-files-found: error
+
+  server:
+    name: Server package
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node scripts/package.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: server
+          path: releases/field-warfare-*-server*
+          if-no-files-found: error
+
+  release:
+    name: Publish release
+    needs: [mac, windows, server]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-files
+          merge-multiple: true
+      - name: Create the release with all files
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls -l release-files
+          version="${GITHUB_REF_NAME#v}"
+          sed "s/<version>/$version/g" .github/release-notes.md > notes.md
+          gh release create "$GITHUB_REF_NAME" release-files/* \
+            --title "Field Warfare $version" \
+            --notes-file notes.md \
+            --generate-notes

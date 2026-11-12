@@ -1,0 +1,39 @@
+APP STORE REVIEW NOTES (App Store Connect > App Review Information > Notes)
+Paste the text between the dashed lines into App Store Connect.
+Field limit: 4000 characters.
+Also in App Store Connect:
+  Privacy Policy URL: https://aerofred.github.io/FieldWarfare/privacy.html
+  Support URL:        https://aerofred.github.io/FieldWarfare/support.html
+
+----------------------------------------------------------------------
+Thank you for reviewing Field Warfare.
+
+GENERAL
+- The interface follows the device language: English, French, Spanish, Brazilian Portuguese, German or Japanese (Settings > Language in the game overrides it). Labels below are the English ones.
+- No account, no login, no in-app purchases, no ads. Everything works offline.
+- Play in landscape. Turning the device to portrait pauses the game.
+
+QUICK TEST (SOLO, OFFLINE)
+1. On the lobby screen, keep the default mode (ASSAULT) and "SOLO".
+2. Tap "DEPLOY". The match starts against computer-controlled bots.
+3. Touch controls: left half of the screen = movement stick; drag anywhere else to look; the buttons along the right edge fire, aim, jump and crouch; tap the ammo counter to reload. The pause button is at the top right of the screen.
+
+MULTIPLAYER (LOCAL NETWORK ONLY, NO SERVER RUN BY US)
+Online play happens only on the local network, or on a server the player hosts. The app itself contains the game server, so no external service is needed.
+To test with two devices on the same Wi-Fi network:
+1. Device A: in the lobby choose "ONLINE", tap "DEPLOY", enter a player name, pick "THIS DEVICE" and join. Allow Local Network access when asked. The match is then announced on the local network via Bonjour (_fieldwarfare._tcp).
+2. Device B: choose "ONLINE", tap "DEPLOY", then pick "<name>'S GAME" in the list and join.
+Testing with a single device works too: "THIS DEVICE" hosts a match that bots fill.
+There is no text or voice chat; players only see each other's names.
+
+AUGMENTED REALITY (CAMERA)
+The camera is used only for the optional augmented reality views (ARKit), chosen in the lobby's "VIEW" menu:
+- "Tabletop model": the map is placed on a table. Scan a flat surface, tap "PLACE HERE", then "DEPLOY".
+- "Full room (LiDAR)" or "Room (floor and walls)": the player's room becomes the battlefield (Survival mode, solo). Walk around to scan the floor and walls, tap "CONFIRM ROOM", then "DEPLOY". LiDAR devices (iPad Pro, iPhone Pro) also detect furniture.
+Camera images and room scans are processed on the device and never stored or sent.
+
+OTHER
+- Motion sensors are used only if the player turns on gyroscope aiming in settings.
+- Game controllers (MFi, Xbox, PlayStation) are supported.
+- Privacy: no data is collected (see the privacy policy URL).
+----------------------------------------------------------------------

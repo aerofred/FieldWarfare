@@ -1,0 +1,3 @@
+/* Permission prompts shown by iOS. */
+"NSCameraUsageDescription" = "Field Warfareは拡張現実(AR)のためにカメラを使用します。戦場をミニチュアとしてテーブルに置いたり、敵をあなたの部屋に呼び込んだりできます。";
+"NSLocalNetworkUsageDescription" = "Field Warfareはローカルネットワーク上のほかのプレイヤーのゲームを見つけ、あなたのゲームを公開します。";

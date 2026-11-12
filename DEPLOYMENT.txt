@@ -1,0 +1,148 @@
+FIELD WARFARE 3.0 — SERVER PACKAGE
+
+REQUIREMENTS
+  Node.js 22 or later on Windows, Linux or macOS.
+  Package validated with Node.js 24.13.1 on Windows.
+  The game is prebuilt and the server dependencies are bundled in server.mjs.
+  No npm install or build is needed on the target machine.
+
+DEPLOYMENT
+  1. Copy the ZIP or TAR.GZ to the server and extract it.
+  2. Enter the extracted field-warfare-<version>-server folder.
+  3. Run:
+       node server.mjs
+     or:
+       npm start
+  4. Open http://SERVER_ADDRESS:4173 in the players' browsers.
+  5. Choose the mode, "ONLINE" under "WHERE TO PLAY", "DEPLOY", a
+     callsign, then join. The first player in an empty room applies their
+     mode, map, rules and bot level; later players
+     join the game in progress. Bots fill the free slots on each side.
+     The round starts as soon as the first human connects.
+
+  Linux, example:
+    tar -xzf field-warfare-<version>-server.tar.gz
+    cd field-warfare-<version>-server
+    node server.mjs
+
+  Windows PowerShell, example:
+    Expand-Archive .\field-warfare-<version>-server.zip -DestinationPath .
+    cd .\field-warfare-<version>-server
+    node server.mjs
+
+CONFIGURATION
+  Defaults: HOST=0.0.0.0, PORT=4173, BOTS=1.
+  The HTTP site and the /multiplayer WebSocket use the same TCP port.
+
+  Linux/macOS:
+    HOST=0.0.0.0 PORT=8080 node server.mjs
+
+  Windows PowerShell:
+    $env:HOST = '0.0.0.0'
+    $env:PORT = '8080'
+    node server.mjs
+
+  BOTS=1 fills the teams with server-controlled bots.
+  Each human replaces a bot; a disconnection brings a bot back.
+  To disable bots: BOTS=0 node server.mjs on Linux/macOS, or
+  $env:BOTS = '0' then node server.mjs in PowerShell. This setting requires
+  a restart. Without bots, the round waits for one human on each side;
+  enemies in the co-op modes remain bots.
+
+  Modes: assault ("Assault", co-op), survival ("Survival", co-op), tdm
+  ("Team Deathmatch"), ctf ("Capture the Flag"), ffa ("Free-for-All").
+  Without MODE, the first human in an empty room chooses the mode and its
+  rules (duration, objective, team sizes) in their lobby.
+  To force a mode (the first player then only sets the rules):
+    Linux/macOS: MODE=ctf node server.mjs
+    PowerShell: $env:MODE = 'ctf' then node server.mjs
+
+  Available maps: factory ("The Foundry"), gardens ("The Two Gardens"),
+  railway ("Rail Depot"), desert ("The Outpost"), market ("The Market
+  Halls"), harbor ("The Harbor"). The first human chooses the shared
+  map in an empty room; later arrivals keep the current map.
+  To force a map on a dedicated server:
+    Linux/macOS: MAP=gardens node server.mjs
+    PowerShell: $env:MAP = 'gardens' then node server.mjs
+  Remove MAP from the environment and restart to give the choice back to
+  the players.
+  The /api/server API and the WebSocket snapshots report mapId and mapFixed.
+
+  AI levels: recruit, soldier (normal), veteran, elite.
+  Without BOT_DIFFICULTY, the first human in an empty room applies the level
+  chosen in their lobby. This level applies to the whole room;
+  later players cannot change it. The HUD shows the level.
+  To force the level on a dedicated server:
+    Linux/macOS: BOT_DIFFICULTY=veteran node server.mjs
+    PowerShell: $env:BOT_DIFFICULTY = 'veteran' then node server.mjs
+  Remove the variable to give the choice back to the first player:
+    PowerShell: Remove-Item Env:BOT_DIFFICULTY
+    Linux/macOS: unset BOT_DIFFICULTY
+  Any configuration change requires a server restart.
+  Invalid values are rejected at startup.
+
+  Local network: the server announces itself over Bonjour/mDNS
+  (_fieldwarfare._tcp, UDP port 5353) as soon as a human plays, so that it
+  appears in the list of Field Warfare apps and browsers on the same
+  network. To disable announcing and discovery:
+    Linux/macOS: DISCOVERY=0 node server.mjs
+    PowerShell: $env:DISCOVERY = '0' then node server.mjs
+
+  HOST=127.0.0.1 restricts access to the local machine, for example behind
+  a proxy.
+  The chosen port must be reachable by players in the server's network
+  configuration. For Internet access, use its public address or a domain
+  and make this port reachable, directly or through an HTTP/HTTPS proxy.
+
+PROXY AND HTTPS
+  Forward HTTP requests to the application port.
+  Allow WebSocket connections and their upgrade on /multiplayer.
+  The address used in the browser must remain that of the public proxy.
+  The browser automatically picks wss:// when the site is served over HTTPS.
+  HTTPS encryption and certificates are handled by the proxy or the host.
+  Phones and tablets: the game plays over HTTP as well as HTTPS. Android
+  only offers to install it as an app over HTTPS; plan an HTTPS proxy for
+  a public address.
+  Gamepads: Chrome, Edge and Firefox only expose them over HTTPS or on
+  localhost. To play with a gamepad from other machines, serve the
+  game behind an HTTPS proxy.
+  Gyro aiming: browsers (Safari on iPhone and iPad, Chrome) only provide
+  device motion over HTTPS or on localhost. Over HTTP, the setting is
+  grayed out; the iOS app does not have this limitation.
+
+OPERATIONS
+  Keep the Node process running with the server's service manager.
+  Ctrl+C, SIGINT or SIGTERM stop the server and close the connections.
+  Players, scores and rounds are kept in memory; a restart begins a new
+  session. No external storage is required.
+  GET /api/server returns the room state and the number of players.
+  8 human players maximum; each side's size follows the room's rules,
+  with bots for the free slots.
+  With no human connected, the room does not simulate bots.
+  The API distinguishes players (humans), bots, fillBots, mode, modeFixed,
+  rules, botDifficulty, difficultyFixed and the team sizes per side.
+  Menus do not stop the multiplayer round.
+  The terminal output is in English. Refusals sent to players are message
+  keys (data.error.*) that each client shows in its own language.
+  GET /api/lan lists the games announced on the local network (absent
+  with DISCOVERY=0); the machine's addresses are only given to pages
+  opened on the machine itself.
+
+CONTENTS TO KEEP TOGETHER
+  server.mjs             Standalone server with bundled dependencies.
+  dist/                  Prebuilt interface and game.
+  package.json           npm start command and minimum Node version.
+  licenses/              Licenses of the distributed dependencies.
+  release-manifest.json  SHA-256 hashes of the package files.
+  DEPLOYMENT.txt         This guide.
+
+  Google Fonts are optional: a fallback font works if the server or the
+  browser has no Internet access.
+
+REBUILDING THE PACKAGE FROM THE SOURCE REPOSITORY
+  npm ci
+  npm run package
+  npm run test:package
+  Packaging uses Node.js, the development dependencies and tar
+  (available on Linux/macOS and current versions of Windows).
+  The archives and their hashes are in releases/.

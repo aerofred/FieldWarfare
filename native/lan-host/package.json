@@ -1,0 +1,15 @@
+{
+  "name": "field-warfare-lan-host",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local game server and Bonjour discovery for the Field Warfare iOS app.",
+  "files": [
+    "Package.swift",
+    "ios/Sources"
+  ],
+  "capacitor": {
+    "ios": {
+      "src": "ios"
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "appId": "com.aerofred.fieldwarfare",
+  "appName": "Field Warfare",
+  "webDir": "dist",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#151916"
+  }
+}
