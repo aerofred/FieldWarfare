@@ -6,6 +6,8 @@ Designed for computers with keyboard and mouse, playable on phones and tablets w
 
 > **Built with AI:** the code, maps, interface, documentation and app icon were created with AI assistants, under the direction and review of the author.
 
+I started this project to see how far AI could take a game without me writing a single line of code, and to make something to play with my kids. Enjoy, and have fun!
+
 ## Contents
 
 - [Getting started](#getting-started)
