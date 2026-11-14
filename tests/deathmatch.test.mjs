@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {DEATHMATCH,canDamage,awardTeamKill,deathmatchResult,chooseTeamSpawn} from '../src/deathmatch.js';
+import {DEATHMATCH,canDamage,shielded,engage,awardTeamKill,deathmatchResult,chooseTeamSpawn} from '../src/deathmatch.js';
 import {collides,distance} from '../src/rules.js';
 
 test('friendly fire and spawn protection reject both direct fire and grenade damage',()=>{
@@ -31,4 +31,10 @@ test('safe covered spawns take priority over exposed spawns',()=>{
  const actors=[{x:0,z:15,team:'red',alive:true}];
  const spawn=chooseTeamSpawn('blue',actors,[],p=>p.x>-20);
  assert.ok(spawn.x<=-20);
+});
+test('spawn protection names the hits it stops and ends as soon as its holder acts',()=>{
+ const ally={team:'blue',alive:true,protectedUntil:0},enemy={team:'red',alive:true,protectedUntil:5};
+ assert.equal(shielded(ally,enemy,4),true);assert.equal(shielded(ally,enemy,5),false);assert.equal(shielded(ally,ally,4),false);assert.equal(shielded(null,enemy,4),false);
+ engage(enemy,3);assert.equal(enemy.protectedUntil,3);assert.equal(canDamage(ally,enemy,3),true);
+ engage(enemy,4);assert.equal(enemy.protectedUntil,3,'an expired protection is left alone');
 });

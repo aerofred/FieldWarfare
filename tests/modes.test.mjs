@@ -125,3 +125,9 @@ test('fire cadence follows the weapon interval at any tick rate',()=>{
   assert.ok(Math.abs(a.shots-shots-Math.round(1/WEAPONS[1].interval))<=1,`${dt}: ${a.shots-shots} shots`);
  }
 });
+test('taking the enemy flag ends spawn protection',()=>{
+ const room=new GameRoom({fillBots:false}),blue=room.add({name:'Blue',mode:'ctf'});room.add({name:'Red'});room.clock=5;
+ const home=MAPS.factory.flags;place(blue,home.red.x,home.red.z);blue.protectedUntil=room.clock+2;room.tick(1/30);
+ assert.equal(blue.carrying,'red');assert.equal(blue.protectedUntil<=room.clock,true);
+});
+

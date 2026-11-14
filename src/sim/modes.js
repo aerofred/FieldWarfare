@@ -1,5 +1,5 @@
 import {distance,collides,captureStep,hostile} from '../rules.js';
-import {chooseTeamSpawn,chooseFreeSpawn,awardTeamKill} from '../deathmatch.js';
+import {chooseTeamSpawn,chooseFreeSpawn,awardTeamKill,engage} from '../deathmatch.js';
 import {clearShot} from '../world.js';
 
 // Mode rules plug into the shared room through these hooks: team choice, bot
@@ -79,7 +79,7 @@ class CaptureTheFlag extends Mode {
       const touch=this.living(p=>distance(p,flag)<1.3&&Math.abs((p.jump||0)-flag.y)<1.2).sort((a,b)=>distance(a,flag)-distance(b,flag));
       const defender=touch.find(p=>p.team===flag.team),raider=touch.find(p=>p.team!==flag.team&&!p.carrying);
       if(flag.state==='dropped'&&defender){this.reset(flag);room.emit('flag',{action:'returned',team:flag.team,name:defender.name});}
-      else if(raider){Object.assign(flag,{state:'carried',carrier:raider.id});raider.carrying=flag.team;room.emit('flag',{action:'taken',team:flag.team,name:raider.name,actor:raider.id});}
+      else if(raider){Object.assign(flag,{state:'carried',carrier:raider.id});raider.carrying=flag.team;engage(raider,room.clock);room.emit('flag',{action:'taken',team:flag.team,name:raider.name,actor:raider.id});}
     }
     // A capture counts only while the scoring team still holds its own flag.
     for(const p of this.living(p=>p.carrying)){

@@ -63,7 +63,7 @@ export default {
 
  // Notifications
  'game.notify.respawn':'DE VOLTA AO COMBATE',
- 'game.notify.respawnSub':'Proteção de spawn · 2 segundos',
+ 'game.notify.respawnSub':'Proteção de spawn · 3 segundos',
  'game.notify.pickup':'MUNIÇÃO RECUPERADA',
  'game.notify.pickupSub':'Reserva de carregadores cheia',
  'game.notify.doubleKill':'ABATE DUPLO',

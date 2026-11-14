@@ -21,6 +21,7 @@ import {t,lang} from './i18n.js';
 const setText=(el,value)=>{value=String(value);if(el.textContent!==value)el.textContent=value;};
 const setStyle=(el,property,value)=>{if(el.style[property]!==value)el.style[property]=value;};
 import {AimAssist} from './aim-assist.js';
+import {attachShield,disposeShield} from './spawn-shield.js';
 import {actionMap,learnKey,normalizeBindings} from './keybindings.js';
 const $=id=>document.getElementById(id);
 const escapeHtml=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -219,7 +220,7 @@ export class Game {
  // Kills in a row without dying, quick successions and headshots, per round.
  resetCombat(){this.combat={streak:0,best:0,chain:0,lastKill:-Infinity,headshots:0};}
  resetFeel(){this.crouchToggle=false;this.jumpQueued=false;this.punch.pitch=this.punch.yaw=0;this.bloom=0;this.shake=0;this.sway.x=this.sway.y=0;this.swayInput.x=this.swayInput.y=0;this.velocity.x=this.velocity.z=0;this.breath=1;this.tilt=0;this.viewRoll=0;this.landKick=0;this.sprintBlend=0;this.sprintOut=0;this.sprinting=false;this.pendingShot=false;this.damageTime=0;this.hitTime=0;}
- disposeActor(b){b.model.skeleton?.dispose();b.model.flash.material.dispose();this.scene.remove(b.model.root);b.model.root.traverse(m=>{if(m.isMesh&&!m.userData.shared)m.geometry?.dispose();if(m.isSprite){m.material.map?.dispose();m.material.dispose();}});}
+ disposeActor(b){disposeShield(b.model);b.model.skeleton?.dispose();b.model.flash.material.dispose();this.scene.remove(b.model.root);b.model.root.traverse(m=>{if(m.isMesh&&!m.userData.shared)m.geometry?.dispose();if(m.isSprite){m.material.map?.dispose();m.material.dispose();}});}
  cleanRound(){this.visuals?.resetImpacts();this.visuals?.effects.clear();this.visuals?.scope.restore();for(const b of this.bots)this.disposeActor(b);this.bots=[];this.blastLife=0;this.blastLight.intensity=0;this.clearIndicators();this.keys.clear();this.touch?.reset();this.gamepad?.release();this.mouseDown=false;this.aim=false;this.showScoreboard(false);$('killfeed').replaceChildren();$('notifications').textContent='';$('respawn-overlay').classList.add('hidden');$('reload-notice').classList.add('hidden');$('capture-notice').classList.add('hidden');$('grenade-warning').classList.add('hidden');this.grenadeAlerts=new Set();$('result-roster').replaceChildren();$('results').firstElementChild.classList.remove('tdm-results');}
  pause(){if(this.state!=='active')return;this.keys.clear();this.touch.reset();this.gamepad.release();this.mouseDown=false;this.aim=false;this.showScoreboard(false);document.body.classList.remove('aiming');this.transition('paused');this.network?.stopInput();if(document.pointerLockElement)document.exitPointerLock();}
  resume(){if(this.state!=='paused')return;this.audio.start();this.transition('active');this.lock();}
@@ -269,6 +270,8 @@ export class Game {
   if(this.sprintOut>0){if(triggered)this.pendingShot=true;return;}
   if(triggered&&!this.traversal)this.network?.fire();
  }
+ // A hit the target's spawn shield took: the marker in the shield's colour, no damage sound.
+ markBlocked(){this.hitTime=.12;const marker=$('hitmarker');marker.style.color='#5cc8ff';marker.classList.remove('kill');this.audio.shield();}
  markHit(head,kill){this.hitTime=kill?.3:.15;const marker=$('hitmarker');marker.style.color=kill?'#ef6a4b':head?'#d3f36a':'#f1f0e8';marker.classList.toggle('kill',kill);this.audio.hit(head);if(kill)this.audio.kill();}
  reload(){if(this.player.alive)this.network?.action('reload');}
  // Fall away from the shot or the blast that killed the soldier.
@@ -423,7 +426,7 @@ export class Game {
  // Audible footsteps let players hear who is coming round the corner.
  botFootsteps(b){const step=Math.floor(b.model.phase/Math.PI);if(step!==b.lastStep){b.lastStep=step;if(b.model.blend>.35&&b.alive&&distance(b,this.player)<20)this.audio.step({x:b.x,y:.3,z:b.z},b.crouch?.03:.07);}}
  createRemotePlayer(data){
-  const model=createSoldier(data.team==='blue'?'blue':'red'),actor={...data,model,phase:0,flashTime:0,visible:false};model.root.position.set(data.x,.15,data.z);model.root.rotation.y=data.yaw+Math.PI;model.root.traverse(m=>{if(m.isMesh)m.userData.bot=actor;});this.scene.add(model.root);
+  const model=createSoldier(data.team==='blue'?'blue':'red'),actor={...data,model,phase:0,flashTime:0,visible:false};model.root.position.set(data.x,.15,data.z);model.root.rotation.y=data.yaw+Math.PI;model.root.traverse(m=>{if(m.isMesh)m.userData.bot=actor;});attachShield(model,data.team==='blue'?'blue':'red');this.scene.add(model.root);
   // Co-op enemies stay anonymous; everyone else carries a name tag.
   if(!(this.coop&&data.hostile))this.addTeamMarker(actor);this.visuals?.warm(model.root);return actor;
  }

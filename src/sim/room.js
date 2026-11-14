@@ -1,5 +1,5 @@
 import {WEAPONS,SIDEARMS,clamp,damageAtDistance,distance,moveSpeed,shotSpread} from '../rules.js';
-import {DEATHMATCH,canDamage} from '../deathmatch.js';
+import {DEATHMATCH,canDamage,shielded,engage} from '../deathmatch.js';
 import {createWorld,clearShot} from '../world.js';
 import {traverse} from '../traversal.js';
 import {resetBot,updateBot,fireBot,grenadeBot} from './bots.js';
@@ -142,7 +142,7 @@ export class GameRoom {
     if(!p.alive||p.cooldown>1e-6||p.reload>0||p.climb||p.mantle||this.phase!=='active')return false;
     const w=WEAPONS[p.weapon],ammo=p.ammunition[p.weapon];if(ammo.ammo<=0){this.reload(p);return false;}
     // The cooldown keeps the sub-tick remainder, so cadence does not depend on the tick rate.
-    ammo.ammo--;p.shots++;if(!w.suppressed)p.lastShot=this.clock;p.cooldown+=aimed?.interval??w.interval;
+    ammo.ammo--;p.shots++;if(!w.suppressed)p.lastShot=this.clock;p.cooldown+=aimed?.interval??w.interval;engage(p,this.clock);
     // Each pellet is traced on its own; a victim takes the sum in one hit.
     const origin=this.eye(p),view=aimed?.direction??this.direction(p),spread=aimed?.direction?0:shotSpread(w,p.sighted||0),traces=[],hits=new Map();
     for(let i=0;i<(w.pellets||1);i++){
@@ -151,10 +151,11 @@ export class GameRoom {
       const trace=traceShot(origin,direction,w.range,this.world.solids,this.actors,p),{victim,head}=trace;traces.push(trace);
       if(victim){const hit=hits.get(victim)??{amount:0,head:false};hit.amount+=damageAtDistance(w.damage*(aimed?.damageScale??1),trace.distance,w.falloff,head);hit.head||=head;hits.set(victim,hit);}
     }
-    let victim=null;const struck=new Set();for(const [actor,hit]of hits)if(hit.amount>0&&this.damage(actor,hit.amount,p,hit.head)){struck.add(actor);if(!victim||hit.amount>hits.get(victim).amount)victim=actor;}
+    // A trace stopped by spawn protection names the shielded actor instead of a hit.
+    let victim=null;const struck=new Set(),blocked=new Set();for(const [actor,hit]of hits)if(hit.amount>0){if(this.damage(actor,hit.amount,p,hit.head)){struck.add(actor);if(!victim||hit.amount>hits.get(victim).amount)victim=actor;}else if(shielded(p,actor,this.clock))blocked.add(actor);}
     if(victim)p.hits++;
-    const shown=traces.find(t=>t.victim===victim)??traces[0];
-    this.emit('shot',{actor:p.id,weapon:p.weapon,origin,end:shown.end,hit:victim?.id??null,head:!!victim&&hits.get(victim).head,...(traces.length>1?{pellets:traces.map(t=>({end:t.end,hit:struck.has(t.victim)?t.victim.id:null}))}:{})});return true;
+    const shown=traces.find(t=>t.victim===victim)??traces[0],shield=t=>blocked.has(t.victim)?{shield:t.victim.id}:{};
+    this.emit('shot',{actor:p.id,weapon:p.weapon,origin,end:shown.end,hit:victim?.id??null,head:!!victim&&hits.get(victim).head,...(victim?{}:shield(shown)),...(traces.length>1?{pellets:traces.map(t=>({end:t.end,hit:struck.has(t.victim)?t.victim.id:null,...shield(t)}))}:{})});return true;
   }
   // The kill event names the weapon (or 'grenade') and, for a shot, the range.
   damage(victim,amount,attacker,head=false,weapon=WEAPONS[attacker?.weapon]?.id??null){
@@ -187,13 +188,14 @@ export class GameRoom {
   }
   // A grenade as it leaves the hand; bots also use it to rehearse a throw.
   launchGrenade(p,direction){const origin=grenadeOrigin(this.eye(p),direction,this.world.solids);return {...origin,vx:direction.x*13,vy:direction.y*13+4,vz:direction.z*13,fuse:2.1};}
-  throwGrenade(p,direction=this.direction(p)){if(p.grenades<=0)return;p.grenades--;this.grenades.push({id:uid(),owner:p,...this.launchGrenade(p,direction)});}
+  throwGrenade(p,direction=this.direction(p)){if(p.grenades<=0)return;p.grenades--;engage(p,this.clock);this.grenades.push({id:uid(),owner:p,...this.launchGrenade(p,direction)});}
   explode(g){
     // A bot's grenade is scaled like its bullets: light in co-op, near full against humans.
     const scale=g.owner.isBot?this.logic.botDamage(g.owner):1;
     // A free operator is hit through the air to his device.
-    for(const p of this.players.values()){const d=p.free?Math.hypot(p.x-g.x,this.eye(p).y-g.y,p.z-g.z):distance(p,g);if(p.alive&&d<8&&clearShot({x:g.x,y:g.y+.4,z:g.z},{x:p.x,y:p.free?this.eye(p).y:1+p.jump,z:p.z},this.world.solids))this.damage(p,Math.round(180*(1-d/9)*scale),g.owner,false,'grenade');}
-    this.emit('explosion',{x:g.x,y:g.y,z:g.z});
+    const blocked=[];
+    for(const p of this.players.values()){const d=p.free?Math.hypot(p.x-g.x,this.eye(p).y-g.y,p.z-g.z):distance(p,g);if(p.alive&&d<8&&clearShot({x:g.x,y:g.y+.4,z:g.z},{x:p.x,y:p.free?this.eye(p).y:1+p.jump,z:p.z},this.world.solids)&&!this.damage(p,Math.round(180*(1-d/9)*scale),g.owner,false,'grenade')&&shielded(g.owner,p,this.clock))blocked.push(p.id);}
+    this.emit('explosion',{x:g.x,y:g.y,z:g.z,...(blocked.length?{shield:blocked}:{})});
   }
   tick(dt=1/30){
     this.clock+=dt;

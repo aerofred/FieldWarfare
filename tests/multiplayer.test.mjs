@@ -101,3 +101,19 @@ test('a fallen soldier leaves an ammunition box that refills a human and expires
  assert.ok(room.drainEvents().some(e=>e.type==='pickup'&&e.actor===blue.id));
  arena(blue,-8,-8);room.damage(blue,200,red);assert.equal(room.drops.length,1);room.tick(29.9);assert.equal(room.drops.length,1);room.tick(.2);assert.equal(room.drops.length,0);
 });
+test('a protected player who fires or throws loses the protection; shots on a shield are reported',()=>{
+ const {room,blue,red}=twoPlayers();arena(blue,-8,8);arena(red,-8,3);blue.pitch=-Math.atan2(.57,5);
+ red.protectedUntil=room.clock+2;room.drainEvents();
+ assert.equal(room.fire(blue),true);assert.equal(red.health,100);
+ const shot=room.drainEvents().find(e=>e.type==='shot');assert.equal(shot.hit,null);assert.equal(shot.shield,red.id);
+ // Firing back ends the shield at once: the next shot counts.
+ red.yaw=Math.PI;red.cooldown=0;room.fire(red);assert.equal(red.protectedUntil,room.clock);
+ blue.cooldown=0;room.drainEvents();room.fire(blue);assert.ok(red.health<100);assert.equal(room.drainEvents().find(e=>e.type==='shot').shield,undefined);
+ blue.protectedUntil=room.clock+2;room.throwGrenade(blue);assert.equal(blue.protectedUntil,room.clock);
+});
+test('a grenade on a shielded player reports the shield instead of damage',()=>{
+ const {room,blue,red}=twoPlayers();arena(blue,-8,8);arena(red,-8,3);red.protectedUntil=room.clock+2;room.drainEvents();
+ room.explode({owner:blue,x:-8,y:.2,z:4});assert.equal(red.health,100);
+ assert.deepEqual(room.drainEvents().find(e=>e.type==='explosion').shield,[red.id]);
+});
+

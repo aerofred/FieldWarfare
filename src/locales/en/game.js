@@ -69,7 +69,7 @@ export default {
 
  // Notifications
  'game.notify.respawn':'BACK IN THE FIGHT',
- 'game.notify.respawnSub':'Spawn protection · 2 seconds',
+ 'game.notify.respawnSub':'Spawn protection · 3 seconds',
  'game.notify.pickup':'AMMO RECOVERED',
  'game.notify.pickupSub':'Magazine reserve full',
  'game.notify.doubleKill':'DOUBLE KILL',

@@ -65,7 +65,7 @@ export default {
 
  // Notifications
  'game.notify.respawn':'ZURÜCK IM KAMPF',
- 'game.notify.respawnSub':'Spawnschutz · 2 Sekunden',
+ 'game.notify.respawnSub':'Spawnschutz · 3 Sekunden',
  'game.notify.pickup':'MUNITION AUFGENOMMEN',
  'game.notify.pickupSub':'Magazinreserve voll',
  'game.notify.doubleKill':'DOPPELKILL',

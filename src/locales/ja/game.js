@@ -64,7 +64,7 @@ export default {
 
  // Notifications
  'game.notify.respawn':'戦線復帰',
- 'game.notify.respawnSub':'リスポーン保護 · 2秒',
+ 'game.notify.respawnSub':'リスポーン保護 · 3秒',
  'game.notify.pickup':'弾薬回収',
  'game.notify.pickupSub':'予備マガジン満タン',
  'game.notify.doubleKill':'ダブルキル',

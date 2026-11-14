@@ -63,7 +63,7 @@ export default {
 
  // Notifications
  'game.notify.respawn':'RETOUR AU COMBAT',
- 'game.notify.respawnSub':'Protection de réapparition · 2 secondes',
+ 'game.notify.respawnSub':'Protection de réapparition · 3 secondes',
  'game.notify.pickup':'MUNITIONS RÉCUPÉRÉES',
  'game.notify.pickupSub':'Réserve de chargeurs pleine',
  'game.notify.doubleKill':'DOUBLE ÉLIMINATION',

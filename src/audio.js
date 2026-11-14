@@ -168,6 +168,8 @@ export class AudioEngine{
   this.burst(out,t,{freq:650+Math.random()*150,duration:.07,volume:.15});this.sweep(out,t,150,70,.08,.13);this.burst(out,t,{type:'bandpass',freq:1600,q:1.2,duration:.03,volume:.045});
   if(head){this.burst(out,t,{type:'highpass',freq:3000,duration:.015,volume:.07});this.burst(out,t+.003,{type:'bandpass',freq:2500+Math.random()*300,q:8,duration:.06,volume:.05});}
  }
+ // A shot stopped by spawn protection: a bright glassy ping, no thud.
+ shield(){if(!this.context)return;const t=this.now(),out=this.master;this.sweep(out,t,2600,3400,.12,.05,'sine');this.sweep(out,t+.004,5200,6100,.08,.02,'sine');this.burst(out,t,{type:'highpass',freq:7000,duration:.02,volume:.03});}
  // The killing hit lands heavier and lower.
  kill(){if(!this.context)return;const t=this.now()+.02;this.burst(this.master,t,{freq:380,duration:.12,volume:.1});this.sweep(this.master,t,95,42,.15,.12);}
  hurt(){if(!this.context)return;const t=this.now();this.burst(this.master,t,{freq:520,duration:.14,volume:.14});this.sweep(this.master,t,110,50,.14,.2);}

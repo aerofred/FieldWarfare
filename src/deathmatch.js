@@ -1,12 +1,17 @@
 import { collides, distance, hostile } from './rules.js';
 
-export const DEATHMATCH = Object.freeze({ limit:40, duration:480, respawn:4, protection:2 });
+export const DEATHMATCH = Object.freeze({ limit:40, duration:480, respawn:4, protection:3 });
 export const TEAM_SPAWNS = {
   blue:[{x:-9,z:25},{x:-5,z:27},{x:12,z:26},{x:18,z:20},{x:-20,z:20},{x:26,z:25},{x:-27,z:24}],
   red:[{x:-8,z:-27},{x:0,z:-27},{x:13,z:-25},{x:22,z:-20},{x:-19,z:-22},{x:-28,z:-18},{x:27,z:-17}]
 };
 export const opposingTeam = team => team==='blue'?'red':'blue';
 export const canDamage = (attacker,victim,time) => !!attacker && victim.alive && hostile(attacker,victim) && time>=(victim.protectedUntil||0);
+// A hit that only the spawn protection stops: the shield takes it and shows it.
+export const shielded = (attacker,victim,time) => !!attacker && victim.alive && hostile(attacker,victim) && time<(victim.protectedUntil||0);
+// Firing, throwing or taking a flag ends the protection at once: nobody
+// fights from inside the shield.
+export const engage = (actor,time) => { if((actor.protectedUntil||0)>time) actor.protectedUntil=time; };
 
 export function chooseTeamSpawn(team,actors,obstacles,isExposed=()=>false,spawns=TEAM_SPAWNS) {
   const living=actors.filter(a=>a.alive),enemies=living.filter(a=>a.team!==team);

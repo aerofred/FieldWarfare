@@ -5,6 +5,7 @@ import {moveCharacter} from './collision.js';
 import {animateSoldier,createAmmoBox} from './models.js';
 import {WEAPONS} from './rules.js';
 import {MUZZLE} from './effects.js';
+import {updateShield,flashShield} from './spawn-shield.js';
 import {MODES,modeId,normalizeRules} from './modes.js';
 import {GameRoom} from './sim/room.js';
 import {t} from './i18n.js';
@@ -52,7 +53,7 @@ class Session {
       if(!b){b=g.createRemotePlayer(p);g.bots.push(b);}
       if(b.alive&&!p.alive)g.setFall(b,b.lastHitDir);if(p.health<b.health&&p.alive)b.model.flinch=1;
       const respawn=!b.alive&&p.alive;if(respawn||newRound||Math.hypot(b.x-p.x,b.z-p.z)>3){b.x=p.x;b.z=p.z;if(respawn||newRound){b.model.body.rotation.set(0,0,0);b.model.body.position.y=0;}}
-      Object.assign(b,{name:p.name,team:p.team,isBot:!!p.isBot,hostile:!!p.hostile,health:p.health,alive:p.alive,kills:p.kills,deaths:p.deaths,captures:p.captures||0,carrying:p.carrying||null,weapon:p.weapon,reload:p.reload||0,pitch:p.pitch,targetX:p.x,targetZ:p.z,targetYaw:p.yaw,targetJump:p.jump,crouch:p.crouch,climbing:!!p.climbing});
+      Object.assign(b,{name:p.name,team:p.team,isBot:!!p.isBot,hostile:!!p.hostile,health:p.health,alive:p.alive,kills:p.kills,deaths:p.deaths,captures:p.captures||0,carrying:p.carrying||null,weapon:p.weapon,reload:p.reload||0,pitch:p.pitch,targetX:p.x,targetZ:p.z,targetYaw:p.yaw,targetJump:p.jump,crouch:p.crouch,climbing:!!p.climbing,protectedUntil:p.alive?g.time+(p.protectedFor||0):0});
     }
     const ids=new Set(snapshot.grenades.map(p=>p.id));for(const [id,mesh]of this.visualGrenades)if(!ids.has(id)){g.scene.remove(mesh);mesh.geometry.dispose();mesh.material.dispose();this.visualGrenades.delete(id);}
     for(const grenade of snapshot.grenades){let mesh=this.visualGrenades.get(grenade.id);if(!mesh){mesh=new THREE.Mesh(new THREE.SphereGeometry(.13,8,6),new THREE.MeshStandardMaterial({color:'#464e32'}));mesh.castShadow=true;g.scene.add(mesh);this.visualGrenades.set(grenade.id,mesh);}mesh.position.set(grenade.x,grenade.y,grenade.z);}
@@ -85,13 +86,15 @@ class Session {
        if(event.hit===this.id)g.addDamageIndicator(origin);
        else if(g.player.alive&&g.isEnemy(actor)){const cam=g.camera.position,d=shot.subVectors(end,origin),t=Math.max(0,Math.min(1,eye.subVectors(cam,origin).dot(d)/Math.max(1e-6,d.lengthSq())));near.copy(origin).addScaledVector(d,t);if(near.distanceTo(cam)<1.8&&!WEAPONS[event.weapon]?.suppressed){g.audio.whiz(near);g.shake=Math.max(g.shake||0,.08);}}}
       // A shotgun blast lists every pellet; a bullet is its own single trace.
-      for(const trace of event.pellets??[event]){if(trace.hit){const victim=g.bots.find(b=>b.id===trace.hit);if(victim){victim.lastHitDir=direction;victim.model.flinch=1;}}else g.visuals.impact(event.origin,trace.end);}
+      // A shot stopped by spawn protection flares the shield instead of marking a wall.
+      if(local&&!event.hit&&(event.pellets??[event]).some(trace=>trace.shield))g.markBlocked();
+      for(const trace of event.pellets??[event]){if(trace.hit){const victim=g.bots.find(b=>b.id===trace.hit);if(victim){victim.lastHitDir=direction;victim.model.flinch=1;}}else if(trace.shield){const victim=g.bots.find(b=>b.id===trace.shield);if(victim){flashShield(victim.model);g.visuals.effects.sparks(new THREE.Vector3(trace.end.x,trace.end.y,trace.end.z),5,3);}}else g.visuals.impact(event.origin,trace.end);}
     }
     if(event.type==='kill')g.onKill(event,this.id);
     if(event.type==='flag')g.onFlag(event,this.id);
     if(event.type==='pickup'&&event.actor===this.id)g.onPickup();
     if(event.type==='objective')g.onObjective(event);
-    if(event.type==='explosion')g.blast(new THREE.Vector3(event.x,event.y,event.z));
+    if(event.type==='explosion'){g.blast(new THREE.Vector3(event.x,event.y,event.z));for(const id of event.shield??[]){const b=g.bots.find(b=>b.id===id);if(b)flashShield(b.model);}}
     if(event.type==='join'&&!this.lastSnapshot?.players.some(p=>p.id===this.id&&p.name===event.name))g.notify(t('game.net.joined'),event.name,2);
     if(event.type==='leave')g.notify(t('game.net.left'),event.name,2);
   }
@@ -109,7 +112,7 @@ class Session {
       // up every few frames with the time it skipped.
       bounds.center.set(b.x,1.1+(b.targetJump||0),b.z);b.animTime=(b.animTime||0)+dt;
       if(Math.hypot(b.x-g.player.x,b.z-g.player.z)<LOD_NEAR||frustum.intersectsSphere(bounds)||(this.lodFrame+i)%LOD_STEP===0){animateSoldier(b.model,{...b,speed:Math.hypot(b.moveX||0,b.moveZ||0),reloadDuration:WEAPONS[b.weapon]?.reload||2,weaponId:WEAPONS[b.weapon]?.id},b.animTime);b.animTime=0;}
-      b.flashTime=Math.max(0,(b.flashTime||0)-dt);b.model.flash.visible=b.alive&&b.flashTime>0;b.visible=b.alive&&g.lineOfSight(g.camera.position,eye.set(b.x,1.5+(b.targetJump||0),b.z));
+      b.flashTime=Math.max(0,(b.flashTime||0)-dt);b.model.flash.visible=b.alive&&b.flashTime>0;updateShield(b.model,b.alive?Math.max(0,(b.protectedUntil||0)-g.time):0,dt,g.time);b.visible=b.alive&&g.lineOfSight(g.camera.position,eye.set(b.x,1.5+(b.targetJump||0),b.z));
       if(b.visible&&b.model.muzzleTip)g.barrelSmoke(b,dt,g.time-(b.lastShotTime||0),()=>b.model.muzzleTip.getWorldPosition(muzzle));else b.heat=0;
       if(b.marker)b.marker.visible=b.alive&&(!g.isEnemy(b)||!g.coop&&b.visible&&Math.hypot(b.x-g.player.x,b.z-g.player.z)<25);
     }

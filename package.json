@@ -1,6 +1,6 @@
 {
   "name": "field-warfare",
-  "version": "4.0.2",
+  "version": "4.0.3",
   "description": "Military FPS, solo against AI bots or on the local network, with a built-in game server.",
   "license": "MIT",
   "private": true,
